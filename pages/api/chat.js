@@ -1,52 +1,35 @@
-export default function handler(req, res) {
-  const { message } = req.body;
-  const query = message.toLowerCase();
-
-  let reply = "Try asking about leave, onboarding, claims or maternity.";
-
-  if (query.includes("leave")) {
-    reply = `
-Leave Policy:
-
-• Privilege Leave (PL): 12 days/year
-• Sick Leave (SL): 6 days/year
-• Casual Leave (CL): 6 days/year
-
-👉 Apply 7 days in advance
-👉 Sick leave: inform within 2 hours
-`;
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
-  else if (query.includes("maternity")) {
-    reply = `
-Maternity Leave:
+  try {
+    const { messages } = req.body;
 
-• 26 weeks (first 2 children)
-• 12 weeks (after that)
-• Paid leave
-`;
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": process.env.ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 800,
+        system: "You are ARIA HR Assistant",
+        messages,
+      }),
+    });
+
+    const data = await response.json();
+
+    return res.status(200).json({
+      reply: data?.content?.[0]?.text || "No response",
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      reply: "Server error",
+    });
   }
-
-  else if (query.includes("claim") || query.includes("expense")) {
-    reply = `
-Expense Claim:
-
-1. Go to HRMS
-2. Click New Claim
-3. Upload invoice
-4. Submit before 20th
-`;
-  }
-
-  else if (query.includes("onboarding")) {
-    reply = `
-Onboarding:
-
-• Get credentials
-• Complete profile
-• Meet manager
-`;
-  }
-
-  res.status(200).json({ reply });
 }
